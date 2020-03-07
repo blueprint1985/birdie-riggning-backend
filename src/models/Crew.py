@@ -1,7 +1,6 @@
+from run import db
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
 
 class CrewModel(db.Model):
     __tablename__ = 'crew'
