@@ -1,4 +1,7 @@
 from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
 
 def create_app(config_filename):
     app = Flask(__name__)
@@ -6,6 +9,8 @@ def create_app(config_filename):
     
     from app import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
+
+    db.init_app(app)
 
     return app
 
