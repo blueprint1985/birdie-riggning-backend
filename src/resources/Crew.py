@@ -3,6 +3,8 @@ from flask import request
 from flask_restful import Resource
 from models.Crew import CrewModel
 from schemas.Crew import CrewSchema
+from re import search
+from sqlalchemy.exc import IntegrityError
 
 crews_schema = CrewSchema(many=True)
 crew_schema = CrewSchema()
@@ -53,35 +55,25 @@ class CrewList(Resource):
                 'errors': errors,
                 'code': 'ERROR_INPUT_VALIDATION'}, 422
 
-        # Check if nickname already exists
-        crew_nick_exists_test = CrewModel.query.filter_by(nickname=json_data['nickname']).first()
-        if crew_nick_exists_test:
-            return {'status': 'error',
-                'message': 'Nickname already exists',
-                'code': 'ERROR_EXISTING_NICKNAME'}, 409
-
-        # Check if email already exists
-        crew_email_exists_test = CrewModel.query.filter_by(email=json_data['email']).first()
-        if crew_email_exists_test:
-            return {'status': 'error',
-                'message': 'Email already exists',
-                'code': 'ERROR_EXISTING_EMAIL'}, 409
-
-        # Check if phone already exists
-        crew_phone_exists_test = CrewModel.query.filter_by(phone=json_data['phone']).first()
-        if crew_phone_exists_test:
-            return {'status': 'error',
-                'message': 'Phone already exists',
-                'code': 'ERROR_EXISTING_PHONE'}, 409
-
         crew = CrewModel(
             nickname=data['nickname'],
             email=data['email'],
             phone=data['phone'],
             is_admin=data['is_admin'])
 
-        db.session.add(crew)
-        db.session.commit()
+        try:
+            db.session.add(crew)
+            db.session.commit()
+        # IntegrityError has an 'orig' attr that says "Duplicate entry 'foo' for key 'column'"
+        #  It also does Foreign Keys, haven't checked what they look like
+        # NOTE: This is very MySQL specific and probably won't work with other database engines.
+        except IntegrityError as err:
+            # Find the column, \w+ (non-whitespace) is what we're looking for
+            # err.orig doesn't have a __str__ method, so use `repr()` to get a string representation
+            res = search("(?<=key ')\w+", repr(err.orig))
+            if res == None: # Unknown error... Probably a FK constraint...
+                return {'status': 'error', 'message': 'Unknown integrity error', 'code': 'ERROR_UNKNOWN_ERROR'}, 409
+            return {'status': 'error', 'message': "{} already exists".format(res[0].title()), 'code': "ERROR_EXISTING_{}".format(res[0].upper())}, 409
 
         result = crew_schema.dump(crew).data
         return { 'status': 'success', 'data': result, 'code': 'SUCCESS_CREW_CREATED' }, 201
