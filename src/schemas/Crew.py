@@ -15,7 +15,7 @@ def validatePhone(phone):
 
 class CrewSchema(Marshmallow().Schema):
     id = fields.Integer(dump_only=True)
-    nickname = fields.String(required=True)
-    email = fields.String(required=True)
-    phone = fields.String(required=True, validate=validatePhone)
+    nickname = fields.String(required=True, unique=True)
+    email = fields.String(required=True, unique=True)
+    phone = fields.String(required=True, unique=True, validate=validatePhone)
     is_admin = fields.Boolean(missing=False)
